@@ -1,0 +1,23 @@
+{
+    "name": "egyjs/progressive-json-php",
+    "version": "1.0.0",
+    "description": "Framework-agnostic Progressive JSON Streamer for PHP - breadth-first JSON streaming with placeholders, inspired by Dan Abramov's Progressive JSON.",
+    "keywords": ["php", "json", "stream", "streaming", "progressive json", "progressive-json", "react", "suspense", "laravel", "symfony", "vue", "breadth-first json"],
+    "type": "library",
+    "require": {
+        "symfony/http-foundation": "^7.3",
+        "php": ">=8.0"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Egyjs\\ProgressiveJson\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "egyjs",
+            "email": "el3zahaby@gmail.com"
+        }
+    ]
+}
