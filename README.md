@@ -273,12 +273,6 @@ $streamer->addPlaceholders([
 
 #### Configuration Methods
 
-##### `setPlaceholderMarker(string $marker): self`
-Change the placeholder marker (default: `{$}`).
-
-```php
-$streamer->setPlaceholderMarker('@@PLACEHOLDER@@');
-```
 
 ##### `setMaxDepth(int $depth): self`
 Set maximum nesting depth for structure walking (default: 50).
