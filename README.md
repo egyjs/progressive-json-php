@@ -18,7 +18,17 @@ A powerful PHP library for streaming large or dynamic JSON responses progressive
 
 ---
 
-## 📦 Installation
+## � Support This Project
+
+If you find this library helpful, please consider supporting its development:
+
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/egyjs?style=for-the-badge&logo=github&color=ea4aaa)](https://github.com/sponsors/egyjs)
+
+Your support helps maintain and improve this project! 🙏
+
+---
+
+## �📦 Installation
 
 ```bash
 composer require egyjs/progressive-json-php
