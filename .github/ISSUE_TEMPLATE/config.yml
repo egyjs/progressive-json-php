@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📧 Email Support
+    url: mailto:el3zahaby@gmail.com
+    about: Contact the maintainer directly for sensitive issues or private questions
+  - name: 💬 GitHub Discussions
+    url: https://github.com/egyjs/progressive-json-php/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 📖 Documentation
+    url: https://github.com/egyjs/progressive-json-php#readme
+    about: Check the README for usage examples and documentation

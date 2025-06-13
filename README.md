@@ -669,11 +669,22 @@ GitHub Actions automatically runs tests on:
 
 ## �🤝 Contributing
 
+We welcome contributions from everyone! Please read our [Contributing Guide](CONTRIBUTING.md) for detailed information on how to get started.
+
+**Quick Start:**
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+**Important:**
+- Read our [Code of Conduct](CODE_OF_CONDUCT.md) 
+- Follow our [Contributing Guidelines](CONTRIBUTING.md)
+- Include tests for new features
+- Update documentation as needed
+
+For detailed setup instructions, coding standards, and development workflow, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
