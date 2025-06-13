@@ -110,7 +110,7 @@ The streamer produces a progressive output with the initial structure followed b
 
 ### Example Output
 
-```json
+```bash
 {
     "message": "$message",
     "status": "200",
@@ -162,7 +162,7 @@ This library does the same thing but for **JSON data**:
 ```
 
 #### ⚡ Progressive JSON Solution
-```php
+```bash
 // 1. Structure shows up IMMEDIATELY (like a preview)
 {
   "fast_data": "$fast_data",     // 🔗 Placeholder reference
