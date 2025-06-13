@@ -1,11 +1,10 @@
 # Progressive JSON Streamer for PHP
 
-[![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue?style=flat-square&logo=php)](https://www.php.net/)
-[![Tests](https://img.shields.io/github/actions/workflow/status/egyjs/PHP-Progressive-json-stream/php-tests.yml?branch=master&style=flat-square&logo=github&label=Tests)](https://github.com/egyjs/PHP-Progressive-json-stream/actions)
-[![Code Coverage](https://img.shields.io/codecov/c/github/egyjs/PHP-Progressive-json-stream?style=flat-square&logo=codecov)](https://codecov.io/gh/egyjs/PHP-Progressive-json-stream)
+[![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue?style=flat-square&logo=php)](https://www.php.net/)[![Tests](https://img.shields.io/github/actions/workflow/status/egyjs/progressive-json-php/php-tests.yml?branch=master&style=flat-square&logo=github&label=Tests)](https://github.com/egyjs/progressive-json-php/actions)
+[![Code Coverage](https://img.shields.io/codecov/c/github/egyjs/progressive-json-php?style=flat-square&logo=codecov)](https://codecov.io/gh/egyjs/progressive-json-php)
 [![Latest Version](https://img.shields.io/packagist/v/egyjs/progressive-json-php?style=flat-square&logo=packagist)](https://packagist.org/packages/egyjs/progressive-json-php)
 [![Downloads](https://img.shields.io/packagist/dt/egyjs/progressive-json-php?style=flat-square&logo=packagist)](https://packagist.org/packages/egyjs/progressive-json-php)
-[![License](https://img.shields.io/github/license/egyjs/PHP-Progressive-json-stream?style=flat-square)](https://github.com/egyjs/PHP-Progressive-json-stream/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/egyjs/progressive-json-php?style=flat-square)](https://github.com/egyjs/progressive-json-php/blob/master/LICENSE)
 [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-❤_GitHub-ff69b4?style=flat-square&logo=github)](https://github.com/sponsors/egyjs)
 
 ![Progressive JSON Streamer](/demo-of-progressive-json-streaming.gif)
