@@ -1,5 +1,7 @@
 # Progressive JSON Streamer for PHP
 
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-❤_GitHub-ff69b4?style=for-the-badge&logo=github)](https://github.com/sponsors/egyjs)
+
 ![Progressive JSON Streamer](/demo-of-progressive-json-streaming.gif)
 
 A powerful PHP library for streaming large or dynamic JSON responses progressively, with support for lazy-evaluated placeholders and real-time data delivery. Perfect for APIs with expensive operations, large datasets, or any scenario where you want to send partial JSON results before all data is ready.
@@ -18,17 +20,7 @@ A powerful PHP library for streaming large or dynamic JSON responses progressive
 
 ---
 
-## � Support This Project
-
-If you find this library helpful, please consider supporting its development:
-
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/egyjs?style=for-the-badge&logo=github&color=ea4aaa)](https://github.com/sponsors/egyjs)
-
-Your support helps maintain and improve this project! 🙏
-
----
-
-## �📦 Installation
+## 📦 Installation
 
 ```bash
 composer require egyjs/progressive-json-php
