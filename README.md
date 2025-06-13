@@ -1,6 +1,12 @@
 # Progressive JSON Streamer for PHP
 
-[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-❤_GitHub-ff69b4?style=for-the-badge&logo=github)](https://github.com/sponsors/egyjs)
+[![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue?style=flat-square&logo=php)](https://www.php.net/)
+[![Tests](https://img.shields.io/github/actions/workflow/status/egyjs/PHP-Progressive-json-stream/php-tests.yml?branch=master&style=flat-square&logo=github&label=Tests)](https://github.com/egyjs/PHP-Progressive-json-stream/actions)
+[![Code Coverage](https://img.shields.io/codecov/c/github/egyjs/PHP-Progressive-json-stream?style=flat-square&logo=codecov)](https://codecov.io/gh/egyjs/PHP-Progressive-json-stream)
+[![Latest Version](https://img.shields.io/packagist/v/egyjs/progressive-json-php?style=flat-square&logo=packagist)](https://packagist.org/packages/egyjs/progressive-json-php)
+[![Downloads](https://img.shields.io/packagist/dt/egyjs/progressive-json-php?style=flat-square&logo=packagist)](https://packagist.org/packages/egyjs/progressive-json-php)
+[![License](https://img.shields.io/github/license/egyjs/PHP-Progressive-json-stream?style=flat-square)](https://github.com/egyjs/PHP-Progressive-json-stream/blob/master/LICENSE)
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-❤_GitHub-ff69b4?style=flat-square&logo=github)](https://github.com/sponsors/egyjs)
 
 ![Progressive JSON Streamer](/demo-of-progressive-json-streaming.gif)
 
@@ -619,7 +625,50 @@ $streamer->addPlaceholder('debug_info', function() {
 
 ---
 
-## 🤝 Contributing
+## � Testing
+
+This library comes with comprehensive PHPUnit tests to ensure reliability and maintainability.
+
+### Running Tests
+
+```bash
+# Run all tests
+composer test
+
+# Run tests with coverage report
+composer test:coverage
+
+# Run tests with readable output
+composer test:watch
+
+# Direct PHPUnit commands
+vendor/bin/phpunit
+vendor/bin/phpunit --testdox
+vendor/bin/phpunit --coverage-text
+```
+
+### Test Coverage
+
+The test suite includes:
+- ✅ Basic functionality tests
+- ✅ Error handling and edge cases
+- ✅ Nested structure handling
+- ✅ Stream generation and output
+- ✅ Symfony integration tests
+- ✅ Configuration and validation tests
+
+Coverage reports are generated in `build/coverage-html/` when running with coverage.
+
+### Continuous Integration
+
+GitHub Actions automatically runs tests on:
+- PHP 8.0, 8.1, 8.2, 8.3
+- Push and Pull Request events
+- Multiple operating systems
+
+---
+
+## �🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)

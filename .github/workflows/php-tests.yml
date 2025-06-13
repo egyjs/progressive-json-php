@@ -1,0 +1,52 @@
+name: Run PHP Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        php-version: ['8.0', '8.1', '8.2', '8.3']
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, dom, filter, gd, iconv, json, mbstring, pdo
+          coverage: xdebug
+      
+      - name: Cache Composer packages
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-${{ matrix.php-version }}-
+      
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+      
+      - name: Create build directory
+        run: mkdir -p build
+      
+      - name: Run PHPUnit with coverage
+        run: vendor/bin/phpunit --coverage-clover=build/coverage.xml --coverage-text --testdox
+      
+      - name: Upload coverage reports to Codecov
+        if: matrix.php-version == '8.2'
+        uses: codecov/codecov-action@v3
+        with:
+          file: build/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false

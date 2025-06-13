@@ -19,5 +19,13 @@
             "name": "egyjs",
             "email": "el3zahaby@gmail.com"
         }
-    ]
+    ],
+    "require-dev": {
+        "phpunit/phpunit": "^12.2"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-text --coverage-html=build/coverage-html",
+        "test:watch": "phpunit --testdox"
+    }
 }

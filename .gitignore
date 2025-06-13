@@ -1,2 +1,8 @@
 vendor/
 .idea/
+.vscode/
+.phpunit.result.cache
+build/
+coverage/
+*.log
+.DS_Store
