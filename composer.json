@@ -5,7 +5,7 @@
     "keywords": ["php", "json", "stream", "streaming", "progressive json", "progressive-json", "react", "suspense", "laravel", "symfony", "vue", "breadth-first json"],
     "type": "library",
     "require": {
-        "symfony/http-foundation": "^7.3",
+        "symfony/http-foundation": "^5.4",
         "php": ">=8.0"
     },
     "license": "MIT",
@@ -21,7 +21,7 @@
         }
     ],
     "require-dev": {
-        "phpunit/phpunit": "^12.2"
+        "phpunit/phpunit": "^9.5|^10.0|^11.0"
     },
     "scripts": {
         "test": "phpunit",
