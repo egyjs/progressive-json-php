@@ -13,6 +13,10 @@ A powerful PHP library for streaming large or dynamic JSON responses progressive
 
 ---
 
+Progressive JSON allows you to stream a base JSON object immediately, while progressively filling in placeholders as data becomes available (database calls, API responses, background work).
+
+---
+
 ## ✨ Features
 
 - **🚀 Progressive JSON streaming**: Send an initial JSON structure, then stream data for placeholders as it becomes available
