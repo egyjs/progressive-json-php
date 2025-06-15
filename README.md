@@ -1,45 +1,64 @@
-# Progressive JSON Streamer for PHP
+# Progressive JSON Streaming for PHP APIs
+
+**TL;DR:** Stream JSON data incrementally to show users page structure instantly while slow API calls complete in the background.
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue?style=flat-square&logo=php)](https://www.php.net/)[![Tests](https://img.shields.io/github/actions/workflow/status/egyjs/progressive-json-php/php-tests.yml?branch=master&style=flat-square&logo=github&label=Tests)](https://github.com/egyjs/progressive-json-php/actions)
 [![Code Coverage](https://img.shields.io/codecov/c/github/egyjs/progressive-json-php?style=flat-square&logo=codecov)](https://codecov.io/gh/egyjs/progressive-json-php)
 [![Latest Version](https://img.shields.io/packagist/v/egyjs/progressive-json-php?style=flat-square&logo=packagist)](https://packagist.org/packages/egyjs/progressive-json-php)
-[![Downloads](https://img.shields.io/packagist/dt/egyjs/progressive-json-php?style=flat-square&logo=packagist)](https://packagist.org/packages/egyjs/progressive-json-php)
 [![License](https://img.shields.io/github/license/egyjs/progressive-json-php?style=flat-square)](https://github.com/egyjs/progressive-json-php/blob/master/LICENSE)
 [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-❤_GitHub-ff69b4?style=flat-square&logo=github)](https://github.com/sponsors/egyjs)
 
-![Progressive JSON Streamer](/demo-of-progressive-json-streaming.gif)
+![Progressive JSON Streamer Demo](/demo-of-progressive-json-streaming.gif)
 
-A powerful PHP library for streaming large or dynamic JSON responses progressively, with support for lazy-evaluated placeholders and real-time data delivery. Perfect for APIs with expensive operations, large datasets, or any scenario where you want to send partial JSON results before all data is ready.
+> **Stream JSON responses progressively to improve user experience.** Send page structure instantly, then fill in slow data as it becomes available. Perfect for dashboards, homepages, and APIs mixing fast cached data with slow database queries.
 
----
+Perfect for dashboards, homepages, and any API where some data loads fast (cache) and some loads slow (database/external APIs).
 
-Progressive JSON allows you to stream a base JSON object immediately, while progressively filling in placeholders as data becomes available (database calls, API responses, background work).
+## The Problem
 
----
+```php
+// Traditional API: User waits 2000ms to see anything
+{
+  "user": "...",          // Ready in 50ms 
+  "posts": "...",         // Ready in 200ms
+  "analytics": "..."      // Takes 2000ms ← Everything waits for this
+}
+```
 
-## ✨ Features
+## The Solution
+```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
 
-- **🚀 Progressive JSON streaming**: Send an initial JSON structure, then stream data for placeholders as it becomes available
-- **⚡ Lazy evaluation**: Placeholders are resolved only when streamed, supporting expensive or asynchronous operations
-- **🔗 Dot notation**: Use dot notation to target nested placeholders in your JSON structure
-- **🎛️ Customizable**: Set your own placeholder marker and maximum nesting depth
-- **🔧 Framework-friendly**: Works with pure PHP or frameworks like Symfony and Laravel (via `StreamedResponse`)
-- **❌ Robust error handling**: Streams error info for failed placeholders without breaking the stream
-- **📊 Memory efficient**: Stream large datasets without loading everything into memory at once
+// Progressive API: User sees structure immediately, data fills in as ready
+$streamer = new ProgressiveJsonStreamer();
 
----
+$streamer->data([
+    'user' => '{$}',        // Placeholder
+    'posts' => '{$}',       // Placeholder  
+    'analytics' => '{$}'    // Placeholder
+]);
 
-## 📦 Installation
+$streamer->addPlaceholders([
+    'user' => fn() => $cache->get("user_$id"),           // 50ms
+    'posts' => fn() => Post::where('user_id', $id)->get(), // 200ms
+    'analytics' => fn() => $this->getAnalytics($id)      // 2000ms
+]);
+
+return $streamer->asResponse();
+```
+
+**Result:** User sees page structure in 50ms, then data appears as it loads.
+
+## Installation
 
 ```bash
 composer require egyjs/progressive-json-php
 ```
 
----
+## Quick Start
 
-## 🚀 Quick Start
-
-### Basic Example (Pure PHP)
+### 1. Basic Usage
 
 ```php
 <?php
@@ -49,237 +68,170 @@ $streamer = new ProgressiveJsonStreamer();
 
 // Define structure with placeholders
 $streamer->data([
-    'message' => '{$}',
-    'status' => '200',
-    'items' => '{$}',
-    'nested' => [
-        'nested1' => '{$}',
-        'nested2' => '{$}',
-        'nested3' => 'some static value'
-    ],
+    'profile' => '{$}',
+    'posts' => '{$}',
+    'notifications' => '{$}'
 ]);
 
-// Register resolvers for placeholders
+// Define how to resolve each placeholder
 $streamer->addPlaceholders([
-    'message' => fn() => 'fast message',
-    'items' => fn() => [
-        ['id' => 1, 'name' => 'admin'],
-        ['id' => 2, 'name' => 'ahmed'],
-        ['id' => 3, 'name' => 'Karem']
-    ],
-    'nested.nested1' => fn() => 'nested value 1',
-    'nested.nested2' => fn() => 'nested value 2',
+    'profile' => fn() => User::find($userId),
+    'posts' => fn() => Post::where('user_id', $userId)->get(),
+    'notifications' => fn() => $this->getNotifications($userId)
 ]);
 
 // Stream the response
-$streamer->send();
+$streamer->send(); // For pure PHP
+// OR
+return $streamer->asResponse(); // For Laravel/Symfony
 ```
 
-### Symfony/Laravel Example
+### 2. What the Client Receives
+
+```json
+// ⚡ Immediate response (structure shows instantly):
+{
+    "profile": "$profile",
+    "posts": "$posts", 
+    "notifications": "$notifications"
+}
+
+// 🔄 Then data streams in as it's ready:
+// The client receives the above in chunks, each starting with /* $key */ followed by the actual data
+
+/* $profile */ 
+{"id": 1, "name": "John"}
+
+
+/* $posts */
+[{"id": 1, "title": "Hello World"}]
+
+/* $notifications */
+[{"type": "message", "text": "New comment"}]
+```
+
+### 3. Frontend Integration
+
+```javascript
+async function loadData() {
+    const response = await fetch('/api/dashboard');
+    const reader = response.body.getReader();
+    
+    // Parse initial structure
+    const initialChunk = await reader.read();
+    const structure = JSON.parse(new TextDecoder().decode(initialChunk.value));
+    
+    // Show loading UI immediately
+    updateUI(structure);
+    
+    // Parse progressive updates
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = new TextDecoder().decode(value);
+        if (chunk.includes('/* $')) {
+            const [, key, data] = chunk.match(/\/\* \$(\w+) \*\/\n(.+)/s) || [];
+            if (key && data) {
+                updateSection(key, JSON.parse(data));
+            }
+        }
+    }
+}
+```
+
+## When to Use
+
+**✅ Good for:**
+- Dashboard APIs with multiple data sources
+- Homepage APIs mixing cached and database data  
+- Any API where some data is fast, some is slow
+- Mobile apps (reduces HTTP requests)
+
+**❌ Skip if:**
+- All your data loads fast (<100ms)
+- Using WebSockets/Server-Sent Events
+- Simple APIs with single data source
+
+## Framework Integration
+
+### Laravel
 
 ```php
 <?php
 use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
 
-class ApiController
+class DashboardController extends Controller
 {
-    public function progressiveData()
+    public function dashboard()
     {
         $streamer = new ProgressiveJsonStreamer();
         
         $streamer->data([
-            'users' => '{$}',
-            'meta' => [
-                'total' => '{$}',
-                'processed_at' => '{$}'
-            ]
+            'user' => '{$}',
+            'orders' => '{$}',
+            'analytics' => '{$}'
         ]);
         
         $streamer->addPlaceholders([
-            'users' => fn() => $this->getUsers(), // Expensive DB query
-            'meta.total' => fn() => $this->getUserCount(),
-            'meta.processed_at' => fn() => date('Y-m-d H:i:s')
+            'user' => fn() => auth()->user(),
+            'orders' => fn() => Order::recent()->get(),
+            'analytics' => fn() => $this->analytics->getUserStats()
         ]);
         
-        return $streamer->asResponse(); // Returns Symfony StreamedResponse
+        return $streamer->asResponse();
     }
 }
 ```
 
----
+### Symfony
 
-## 📤 Output Format
+```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
 
-The streamer produces a progressive output with the initial structure followed by resolved data chunks:
-
-### Example Output
-
-```bash
+class ApiController extends AbstractController
 {
-    "message": "$message",
-    "status": "200",
-    "items": "$items",
-    "nested": {
-        "nested1": "$nested.nested1",
-        "nested2": "$nested.nested2",
-        "nested3": "some static value"
+    public function dashboard(): Response
+    {
+        $streamer = new ProgressiveJsonStreamer();
+        
+        $streamer->data(['user' => '{$}', 'stats' => '{$}']);
+        $streamer->addPlaceholders([
+            'user' => fn() => $this->getUser(),
+            'stats' => fn() => $this->getStats()
+        ]);
+        
+        return $streamer->asResponse();
     }
-}
-/* $message */
-"fast message"
-/* $items */
-[
-    {
-        "id": 1,
-        "name": "admin"
-    },
-    {
-        "id": 2,
-        "name": "ahmed"
-    },
-    {
-        "id": 3,
-        "name": "Karem"
-    }
-]
-/* $nested.nested1 */
-"nested value 1"
-/* $nested.nested2 */
-"nested value 2"
 ```
 
-### How It Works (Simple Explanation) 🤓
+## API Reference
 
-Remember how **Progressive JPEGs** load? Instead of showing top-to-bottom, they start fuzzy and get crisp! 🖼️
-
-This library does the same thing but for **JSON data**:
-
-#### 🚀 The Problem with Regular JSON
-```php
-// Traditional way - everything waits for the slowest part
-{
-  "fast_data": "...",     // ✅ Ready in 10ms
-  "slow_data": "...",     // ⏰ Takes 2 seconds 
-  "more_data": "..."      // ✅ Ready in 50ms but BLOCKED!
-}
-// Client gets NOTHING until all 2+ seconds pass 😢
-```
-
-#### ⚡ Progressive JSON Solution
-```bash
-// 1. Structure shows up IMMEDIATELY (like a preview)
-{
-  "fast_data": "$fast_data",     // 🔗 Placeholder reference
-  "slow_data": "$slow_data",     // 🔗 Will load later
-  "more_data": "$more_data"      // 🔗 Can load independently
-}
-
-// 2. Data streams in as it's ready (any order!)
-/* $fast_data */
-"Here's the quick stuff!"
-
-/* $more_data */
-"This loaded while slow_data was still thinking..."
-
-/* $slow_data */
-"Finally! The slow database query finished!"
-```
-
-#### 🎯 Think of it like a Website Loading:
-- **Header/Footer** load instantly
-- **Main content** loads when database responds  
-- **Comments section** loads when API call finishes
-- **Ads** load whenever (hopefully never 😄)
-
-Each piece shows up when ready, instead of everything waiting for the slowest part!
-
-**Why This Rocks for Modern Apps:** 🚀
-- **⚡ Instant Response**: Users see structure immediately
-- **🔄 No Blocking**: Fast data doesn't wait for slow data
-- **💪 Resilient**: One failed piece doesn't break everything  
-- **📱 Perfect for SPAs**: Update UI progressively as data arrives
-
----
-
-## 💡 Inspiration & Theory
-
-This library is inspired by [Dan Abramov's Progressive JSON concept](https://overreacted.io/progressive-json/) - the same pattern used in React Server Components! 
-
-### The Core Innovation 🧠
-
-Instead of sending data **depth-first** (waiting for everything):
-```php
-// BAD: Everything waits for comments to load
-{
-  "header": "Welcome to my blog",
-  "post": {
-    "content": "This is my article", 
-    "comments": [/* WAIT 3 SECONDS FOR DATABASE */]
-  },
-  "footer": "Thanks for reading!"  // This waits too! 😢
-}
-```
-
-We send data **breadth-first** (stream what's ready):
-```php
-// GOOD: Send structure immediately, fill in pieces
-{
-  "header": "Welcome to my blog",
-  "post": "$post_data",           // 🔗 Will resolve later
-  "footer": "Thanks for reading!" // ✅ Shows immediately!
-}
-/* $post_data */
-{
-  "content": "This is my article",
-  "comments": "$comments"         // 🔗 Still loading...
-}
-/* $comments */
-[
-  "Great article!",
-  "Thanks for sharing!"
-]
-```
-
-This is exactly how **React Server Components** work under the hood - but now you can use the same pattern in your PHP APIs! 🚀
-
----
-
-## 🔧 API Reference
-
-### `ProgressiveJsonStreamer`
-
-#### Core Methods
-
-##### `data(array $structure): self`
-Set the JSON structure template with placeholders.
+### Core Methods
 
 ```php
-$streamer->data([
-    'user' => [
-        'profile' => '{$}',
-        'posts' => '{$}'
-    ]
-]);
-```
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
 
-##### `addPlaceholder(string $key, callable $resolver): self`
-Add a single resolver for a placeholder using dot notation.
+$streamer = new ProgressiveJsonStreamer();
 
-```php
-$streamer->addPlaceholder('user.profile', function() {
-    return ['name' => 'John', 'email' => 'john@example.com'];
-});
-```
+// Set structure with placeholders
+$streamer->data(['key' => '{$}']);
 
-##### `addPlaceholders(array $placeholders): self`
-Add multiple resolvers at once.
+// Add single placeholder resolver
+$streamer->addPlaceholder('key', fn() => 'value');
 
-```php
+// Add multiple placeholder resolvers
 $streamer->addPlaceholders([
-    'user.profile' => fn() => getUserProfile(),
-    'user.posts' => fn() => getUserPosts(),
-    'meta.timestamp' => fn() => time()
+    'user' => fn() => User::find(1),
+    'posts' => fn() => Post::latest()->get()
 ]);
+
+// Stream response
+$streamer->send();                    // Pure PHP
+// OR
+return $streamer->asResponse();       // Symfony/Laravel
 ```
 
 #### Configuration Methods
@@ -289,6 +241,9 @@ $streamer->addPlaceholders([
 Set maximum nesting depth for structure walking (default: 50).
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 $streamer->setMaxDepth(100);
 ```
 
@@ -298,6 +253,9 @@ $streamer->setMaxDepth(100);
 Returns a Generator that yields JSON chunks.
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 foreach ($streamer->stream() as $chunk) {
     echo $chunk;
 }
@@ -307,6 +265,9 @@ foreach ($streamer->stream() as $chunk) {
 Streams the response directly to output buffer (for pure PHP).
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 $streamer->send(); // Sets headers and streams directly
 ```
 
@@ -314,6 +275,9 @@ $streamer->send(); // Sets headers and streams directly
 Returns a Symfony `StreamedResponse` for framework integration.
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 return $streamer->asResponse();
 ```
 
@@ -323,6 +287,9 @@ return $streamer->asResponse();
 Get all registered placeholder keys.
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 $keys = $streamer->getPlaceholderKeys();
 // Returns: ['user.profile', 'user.posts', 'meta.timestamp']
 ```
@@ -331,6 +298,9 @@ $keys = $streamer->getPlaceholderKeys();
 Check if a placeholder exists.
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 if ($streamer->hasPlaceholder('user.profile')) {
     // Placeholder exists
 }
@@ -340,6 +310,9 @@ if ($streamer->hasPlaceholder('user.profile')) {
 Remove a specific placeholder.
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 $streamer->removePlaceholder('user.profile');
 ```
 
@@ -347,6 +320,9 @@ $streamer->removePlaceholder('user.profile');
 Remove all placeholders.
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 $streamer->clearPlaceholders();
 ```
 
@@ -354,281 +330,230 @@ $streamer->clearPlaceholders();
 Get the current structure template.
 
 ```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
 $structure = $streamer->getStructure();
 ```
 
 ---
 
-## 🎯 Advanced Usage Examples
+## 📋 **Common Use Cases**
 
-### Database Query Optimization
+### **Admin Dashboard**
+```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
+$streamer->data([
+    'user' => '{$}',
+    'stats' => ['pageviews' => '{$}', 'revenue' => '{$}', 'conversions' => '{$}'],
+    'recent_orders' => '{$}',
+    'notifications' => '{$}'
+]);
+
+$streamer->addPlaceholders([
+    'user' => fn() => Cache::get("user_{$userId}"),              // Fast: cached
+    'stats.pageviews' => fn() => $this->getPageviews($userId),   // Medium: simple query
+    'recent_orders' => fn() => $this->getRecentOrders($userId),  // Medium: simple query
+    'stats.revenue' => fn() => $this->calculateRevenue($userId), // Slow: calculations
+    'stats.conversions' => fn() => $this->getConversions($userId), // Slow: analytics
+    'notifications' => fn() => $this->getNotifications($userId)  // Very slow: external API
+]); // See Step 1 above for structure and resolver patterns
+```
+
+### **E-commerce Product Page**
 
 ```php
 <?php
+
 use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
 
 $streamer = new ProgressiveJsonStreamer();
 
 $streamer->data([
-    'users' => '{$}',
-    'categories' => '{$}',
-    'statistics' => [
-        'total_users' => '{$}',
-        'active_users' => '{$}',
-        'revenue' => '{$}'
-    ]
+    'product' => '{$}',              // Core product info
+    'inventory' => '{$}',            // Stock levels
+    'pricing' => '{$}',              // Dynamic pricing
+    'reviews' => '{$}',              // Customer reviews
+    'recommendations' => '{$}',      // ML recommendations
+    'related_products' => '{$}'      // Related items
 ]);
 
-$streamer->addPlaceholders([
-    // Fast queries first
-    'statistics.total_users' => fn() => $db->query("SELECT COUNT(*) FROM users")->fetchColumn(),
-    
-    // Slower queries
-    'users' => function() use ($db) {
-        sleep(2); // Simulate slow query
-        return $db->query("SELECT * FROM users LIMIT 100")->fetchAll();
-    },
-    
-    'categories' => function() use ($db) {
-        sleep(1); // Another slow operation
-        return $db->query("SELECT * FROM categories")->fetchAll();
-    },
-    
-    // Very expensive calculations
-    'statistics.active_users' => function() use ($analytics) {
-        return $analytics->calculateActiveUsers(); // Complex calculation
-    },
-    
-    'statistics.revenue' => function() use ($billing) {
-        return $billing->calculateMonthlyRevenue(); // API call
-    }
-]);
-
-$streamer->send();
+$streamer->addPlaceholders([...]); // Similar pattern: fast cached data → complex queries → ML/external APIs
 ```
 
-### Error Handling Example
-
+### **Social Media Feed**
 ```php
 <?php
-$streamer = new ProgressiveJsonStreamer();
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
 
 $streamer->data([
-    'working_data' => '{$}',
-    'failing_data' => '{$}',
-    'more_data' => '{$}'
+    'user_profile' => '{$}',         // User info
+    'main_feed' => '{$}',            // Latest posts
+    'trending' => '{$}',             // Trending topics
+    'ads' => '{$}',                  // Targeted ads
+    'people_suggestions' => '{$}'    // Friend suggestions
 ]);
 
-$streamer->addPlaceholders([
-    'working_data' => fn() => ['status' => 'success'],
-    
-    'failing_data' => function() {
-        throw new Exception('Something went wrong!');
-    },
-    
-    'more_data' => fn() => ['continues' => 'after error']
-]);
-
-$streamer->send();
-```
-
-**Output with Error:**
-```json
-{
-    "working_data": "$working_data",
-    "failing_data": "$failing_data",
-    "more_data": "$more_data"
-}
-/* $working_data */
-{
-    "status": "success"
-}
-/* $failing_data */
-{
-    "error": true,
-    "key": "failing_data",
-    "message": "Something went wrong!",
-    "type": "Exception"
-}
-/* $more_data */
-{
-    "continues": "after error"
-}
-```
-
-### Real-time Data Streaming
-
-```php
-<?php
-$streamer = new ProgressiveJsonStreamer();
-
-$streamer->data([
-    'live_metrics' => [
-        'cpu_usage' => '{$}',
-        'memory_usage' => '{$}',
-        'disk_usage' => '{$}'
-    ],
-    'logs' => '{$}'
-]);
-
-$streamer->addPlaceholders([
-    'live_metrics.cpu_usage' => fn() => exec('top -bn1 | grep "Cpu(s)"'),
-    'live_metrics.memory_usage' => fn() => exec('free -m'),
-    'live_metrics.disk_usage' => fn() => exec('df -h'),
-    'logs' => function() {
-        // Stream last 100 lines of log file
-        return array_slice(file('/var/log/app.log'), -100);
-    }
-]);
+$streamer->addPlaceholders([...]); // Pattern: profile cache → posts query → ML recommendations
 ```
 
 ---
 
-## 🌐 Framework Integration
+## 🎯 **Advanced Features**
 
-### Laravel Integration
+### **Error Handling**
 
 ```php
 <?php
-// In a Laravel Controller
 use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
 
-class DataController extends Controller
-{
-    public function progressiveData(Request $request)
-    {
-        $streamer = new ProgressiveJsonStreamer();
-        
-        $streamer->data([
-            'users' => '{$}',
-            'permissions' => '{$}',
-            'audit_log' => '{$}'
-        ]);
-        
-        $streamer->addPlaceholders([
-            'users' => fn() => User::with('profile')->get(),
-            'permissions' => fn() => Permission::all(),
-            'audit_log' => fn() => AuditLog::latest()->limit(50)->get()
-        ]);
-        
-        return $streamer->asResponse();
-    }
-}
-```
-
-### Symfony Integration
-
-```php
-<?php
-// In a Symfony Controller
-use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
-use Symfony\Component\HttpFoundation\Response;
-
-class ApiController extends AbstractController
-{
-    public function progressiveEndpoint(): Response
-    {
-        $streamer = new ProgressiveJsonStreamer();
-        
-        $streamer->data([
-            'products' => '{$}',
-            'categories' => '{$}'
-        ]);
-        
-        $streamer->addPlaceholders([
-            'products' => fn() => $this->productRepository->findAll(),
-            'categories' => fn() => $this->categoryRepository->findAll()
-        ]);
-        
-        return $streamer->asResponse();
-    }
-}
-```
-
----
-
-## 🔒 Security Considerations
-
-1. **Input Validation**: Always validate data before using it in resolvers
-2. **Rate Limiting**: Implement rate limiting for expensive operations
-3. **Authentication**: Ensure proper authentication before streaming sensitive data
-4. **Memory Limits**: Be mindful of memory usage in resolvers
-
-```php
-<?php
-$streamer->addPlaceholder('sensitive_data', function() {
-    // Validate user permissions
-    if (!$this->user->hasPermission('view_sensitive_data')) {
+$streamer->addPlaceholder('risky_data', function() {
+    // Validate permissions
+    if (!$this->user->canAccess('sensitive_data')) {
         throw new UnauthorizedException('Access denied');
     }
+    
+    try {
+        return $this->expensiveOperation();
+    } catch (Exception $e) {
+        throw new ProcessingException('Failed: ' . $e->getMessage());
+    }
+});
+```
+
+Errors are automatically serialized to JSON:
+```json
+/* $data */
+{
+    "error": true,
+    "key": "data",
+    "message": "Failed: Connection timeout",
+    "type": "ProcessingException"
+}
+```
+
+## Advanced Usage
+
+### Performance Optimization
+
+```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
+// Order resolvers by speed (fast → slow)
+$streamer->addPlaceholders([
+    'cached' => fn() => Cache::get('data'),          // ~1ms
+    'simple' => fn() => DB::table('users')->count(), // ~10ms  
+    'complex' => fn() => $this->analytics(),         // ~1000ms
+    'external' => fn() => $this->apiCall()           // ~2000ms
+]);
+```
+
+### Security
+
+```php
+$streamer->addPlaceholder('sensitive', function() {
+    // Validate permissions
+    if (!$this->user->hasRole('admin')) {
+        throw new UnauthorizedException();
+    }
+    
+    // Rate limiting
+    $key = "rate_limit:{$this->user->id}";
+    if (Cache::get($key, 0) > 100) {
+        throw new TooManyRequestsException();
+    }
+    Cache::increment($key, 1, 3600);
     
     return $this->getSensitiveData();
 });
 ```
 
----
-
-## 🔧 Configuration Options
-
 ### HTTP Headers
 
-The streamer automatically sets appropriate headers for streaming:
+The library automatically sets streaming-optimized headers:
 
-- `Cache-Control: no-cache, no-store, must-revalidate`
-- `Pragma: no-cache`
-- `Expires: 0`
-- `Connection: keep-alive`
-- `Content-Type: application/x-json-stream`
-- `X-Accel-Buffering: no` (Nginx: disable buffering)
-- `X-Content-Type-Options: nosniff` (Security header)
+```http
+Content-Type: application/x-json-stream
+Cache-Control: no-cache, no-store, must-revalidate
+Connection: keep-alive
+X-Accel-Buffering: no
+X-Content-Type-Options: nosniff
+```
 
-### Performance Tuning
+## Common Use Cases
+
+### Dashboard API
+```php
+$streamer->data([
+    'user' => '{$}',
+    'metrics' => '{$}',
+    'alerts' => '{$}'
+]);
+
+$streamer->addPlaceholders([
+    'user' => fn() => Cache::get("user_$id"),      // Fast
+    'metrics' => fn() => $this->getMetrics($id),   // Medium
+    'alerts' => fn() => $this->getAlerts($id)      // Slow
+]);
+```
+
+### E-commerce Product Page
+```php
+<?php
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
+
+$streamer->data([
+    'product' => '{$}',
+    'inventory' => '{$}',
+    'reviews' => '{$}',
+    'recommendations' => '{$}'
+]);
+
+$streamer->addPlaceholders([
+    'product' => fn() => Product::find($id),                    // Fast
+    'inventory' => fn() => $this->inventory->getStock($id),     // Medium
+    'reviews' => fn() => Review::where('product_id', $id)->get(), // Medium
+    'recommendations' => fn() => $this->ml->recommend($id)       // Slow
+]);
+```
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Stream cuts off early | Call `ob_end_clean()` before streaming |
+| Memory errors | Use pagination in resolvers |
+| Timeout errors | Increase `max_execution_time` |
+| CORS issues | Set CORS headers before streaming |
+| Parsing fails | Validate JSON in resolvers |
+
+### Debug Mode
 
 ```php
 <?php
-// Increase max depth for deeply nested structures
-$streamer->setMaxDepth(200);
+use Egyjs\ProgressiveJson\ProgressiveJsonStreamer;
 
-
-// Optimize resolver execution order
-$streamer->addPlaceholders([
-    'fast_data' => fn() => $cache->get('fast_data'),     // Fast: from cache
-    'medium_data' => fn() => $db->query('simple_query'), // Medium: simple query
-    'slow_data' => fn() => $api->complexCalculation()    // Slow: complex operation
+$streamer->addPlaceholder('debug', fn() => [
+    'memory' => memory_get_usage(true),
+    'time' => microtime(true) - $_SERVER['REQUEST_TIME_FLOAT']
 ]);
 ```
 
 ---
 
-## 🐛 Troubleshooting
+## 📚 **Resources & Inspiration**
 
-### Common Issues
-
-1. **Output Buffer Issues**: Make sure to disable output buffering for pure PHP usage
-2. **Memory Limits**: For large datasets, consider chunking data in resolvers
-3. **Timeout Issues**: Set appropriate timeout limits for long-running resolvers
-
-### Debugging
-
-```php
-<?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Add debug information to resolvers
-$streamer->addPlaceholder('debug_info', function() {
-    return [
-        'timestamp' => time(),
-        'memory_usage' => memory_get_usage(true),
-        'peak_memory' => memory_get_peak_usage(true)
-    ];
-});
-```
+- **Concept Origin:** [Dan Abramov's Progressive JSON](https://overreacted.io/progressive-json/)
+- **React Server Components:** Uses the same streaming pattern
+- **Similar Concepts:** Progressive JPEG loading, HTTP/2 Server Push
+- **Use Cases:** Netflix UI, Facebook feeds, Google search results
 
 ---
 
-## � Testing
+## 🧪 Testing
 
 This library comes with comprehensive PHPUnit tests to ensure reliability and maintainability.
 
@@ -671,15 +596,15 @@ GitHub Actions automatically runs tests on:
 
 ---
 
-## �🤝 Contributing
+## 🤝 Contributing
 
 We welcome contributions from everyone! Please read our [Contributing Guide](CONTRIBUTING.md) for detailed information on how to get started.
 
 **Quick Start:**
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch: `git checkout -b feature/name`
+3. Commit changes: `git commit -m 'Add feature'`
+4. Push to branch: `git push origin feature/name`
 5. Open a Pull Request
 
 **Important:**
@@ -696,11 +621,9 @@ For detailed setup instructions, coding standards, and development workflow, see
 
 MIT License. See [LICENSE](LICENSE) for details.
 
----
+## Author
 
-## 👨‍💻 Author
-
-**AbdulRahman El-zahaby (egyjs)**  
+**AbdulRahman El-zahaby (@egyjs)**  
 📧 el3zahaby@gmail.com  
 🐙 GitHub: [@egyjs](https://github.com/egyjs)
 
