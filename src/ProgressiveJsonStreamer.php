@@ -377,31 +377,4 @@ class ProgressiveJsonStreamer
     {
         return $this->structure;
     }
-
-    /**
-     * Recursively extract placeholder paths from structure
-     *
-     * @param mixed $structure The structure to analyze
-     * @param string $path Current path
-     * @param array &$paths Reference to paths array
-     * @return void
-     */
-    protected function extractPlaceholderPaths(mixed $structure, string $path, array &$paths): void
-    {
-        if (is_array($structure)) {
-            foreach ($structure as $key => $value) {
-                $currentPath = $path === '' ? (string)$key : $path . '.' . $key;
-
-                if ($value === $this->placeholderMarker) {
-                    $paths[] = $currentPath;
-                } elseif (is_array($value) || is_object($value)) {
-                    $this->extractPlaceholderPaths($value, $currentPath, $paths);
-                }
-            }
-        } elseif (is_object($structure)) {
-            $this->extractPlaceholderPaths((array) $structure, $path, $paths);
-        } elseif (is_string($structure) && $structure === $this->placeholderMarker) {
-            $paths[] = $path ?: 'root';
-        }
-    }
 }
