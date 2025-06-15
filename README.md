@@ -665,7 +665,7 @@ Coverage reports are generated in `build/coverage-html/` when running with cover
 ### Continuous Integration
 
 GitHub Actions automatically runs tests on:
-- PHP 8.0, 8.1, 8.2, 8.3
+- PHP 8.0, 8.1, 8.2, 8.3, and 8.4
 - Push and Pull Request events
 - Multiple operating systems
 
