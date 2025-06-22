@@ -52,6 +52,19 @@ class ProgressiveJsonStreamer
     protected int $maxDepth = 50;
 
     /**
+     * Whether to use concurrent execution
+     *
+     * @var bool
+     */
+    protected bool $concurrent = false;
+
+    public function __construct()
+    {
+        // Auto-detect concurrent support
+        $this->concurrent = $this->shouldUseConcurrentByDefault();
+    }
+
+    /**
      * Set the JSON structure template
      *
      * @param array $structure The structure with placeholders marked as '{$}'
@@ -61,6 +74,18 @@ class ProgressiveJsonStreamer
     public function data(array $structure): self
     {
         $this->structure = $structure;
+        return $this;
+    }
+
+    /**
+     * Enable concurrent mode
+     *
+     * @param bool $enabled Whether to enable concurrent execution
+     * @return self
+     */
+    public function concurrent(bool $enabled = true): self
+    {
+        $this->concurrent = $enabled;
         return $this;
     }
 
@@ -142,33 +167,157 @@ class ProgressiveJsonStreamer
             $initialStructure = $this->walkStructure($this->structure);
             yield json_encode($initialStructure, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-            // Then yield each placeholder's resolved data
-            foreach ($this->placeholders as $key => $resolver) {
-                try {
-                    $value = $resolver(); // Lazy evaluation
-                    $jsonValue = json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            // Choose execution mode and get results iterator
+            $results = ($this->concurrent && $this->canUseConcurrent()) 
+                ? $this->getConcurrentResults() 
+                : $this->getSequentialResults();
 
-                    if ($jsonValue === false) {
-                        throw new RuntimeException("Failed to encode JSON for placeholder '{$key}': " . json_last_error_msg());
-                    }
-
-                    yield "\n/* \${$key} */\n" . $jsonValue;
-
-                } catch (\Throwable $e) {
-                    // Yield error information instead of breaking the stream
-                    $errorData = [
-                        'error' => true,
-                        'key' => $key,
-                        'message' => $e->getMessage(),
-                        'type' => get_class($e)
-                    ];
-
-                    yield "\n/* \${$key} */\n" . json_encode($errorData, JSON_PRETTY_PRINT);
-                }
+            // Stream results as they become available
+            foreach ($results as $key => $result) {
+                yield $this->formatResult($key, $result);
             }
+
         } catch (\Throwable $e) {
             throw new RuntimeException('Failed to generate stream: ' . $e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * Get results sequentially (original behavior)
+     *
+     * @return Generator<string, mixed> key => result pairs
+     */
+    protected function getSequentialResults(): Generator
+    {
+        foreach ($this->placeholders as $key => $resolver) {
+            try {
+                yield $key => $resolver();
+            } catch (\Throwable $e) {
+                yield $key => $e;
+            }
+        }
+    }
+
+    /**
+     * Get results concurrently using amphp/parallel
+     *
+     * @return Generator<string, mixed> key => result pairs
+     */
+    protected function getConcurrentResults(): Generator
+    {
+        if (!class_exists('\Amp\Parallel\Worker\DefaultWorkerPool')) {
+            yield from $this->getSequentialResults();
+            return;
+        }
+
+        try {
+            $tasks = [];
+            $pool = new \Amp\Parallel\Worker\DefaultWorkerPool();
+
+            // Submit all tasks
+            foreach ($this->placeholders as $key => $resolver) {
+                $tasks[$key] = $pool->submit(new PlaceholderTask($resolver, $key));
+            }
+
+            // Yield results as they complete
+            $completed = [];
+            while (count($completed) < count($tasks)) {
+                foreach ($tasks as $key => $task) {
+                    if (!isset($completed[$key]) && $task->isComplete()) {
+                        try {
+                            yield $key => $task->getResult();
+                        } catch (\Throwable $e) {
+                            yield $key => $e;
+                        }
+                        $completed[$key] = true;
+                    }
+                }
+
+                if (count($completed) < count($tasks)) {
+                    usleep(10000); // 10ms
+                }
+            }
+
+        } catch (\Throwable $e) {
+            // Fallback to sequential on any error
+            yield from $this->getSequentialResults();
+        }
+    }
+
+    /**
+     * Format result for output
+     *
+     * @param string $key
+     * @param mixed $result
+     * @return string
+     */
+    protected function formatResult(string $key, mixed $result): string
+    {
+        if ($result instanceof \Throwable) {
+            return $this->formatError($key, $result);
+        }
+
+        $jsonValue = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        
+        if ($jsonValue === false) {
+            return $this->formatError($key, new RuntimeException(
+                "Failed to encode JSON for placeholder '{$key}': " . json_last_error_msg()
+            ));
+        }
+
+        return "\n/* \${$key} */\n" . $jsonValue;
+    }
+
+    /**
+     * Format error response for a placeholder
+     *
+     * @param string $key
+     * @param \Throwable $e
+     * @return string
+     */
+    protected function formatError(string $key, \Throwable $e): string
+    {
+        $errorData = [
+            'error' => true,
+            'key' => $key,
+            'message' => $e->getMessage(),
+            'type' => get_class($e)
+        ];
+
+        return "\n/* \${$key} */\n" . json_encode($errorData, JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * Check if concurrent execution should be enabled by default
+     *
+     * @return bool
+     */
+    protected function shouldUseConcurrentByDefault(): bool
+    {
+        return function_exists('Fiber') 
+            && !$this->isRunningUnderPhpFpm() 
+            && class_exists('\Amp\Parallel\Worker\DefaultWorkerPool');
+    }
+
+    /**
+     * Check if concurrent execution can be used
+     *
+     * @return bool
+     */
+    protected function canUseConcurrent(): bool
+    {
+        return class_exists('\Amp\Parallel\Worker\DefaultWorkerPool');
+    }
+
+    /**
+     * Detect if running under PHP-FPM
+     *
+     * @return bool
+     */
+    protected function isRunningUnderPhpFpm(): bool
+    {
+        return strpos(php_sapi_name(), 'fpm') !== false 
+            || isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'fpm') !== false;
     }
 
     /**
@@ -376,5 +525,15 @@ class ProgressiveJsonStreamer
     public function getStructure(): array
     {
         return $this->structure;
+    }
+
+    /**
+     * Check if concurrent mode is enabled
+     *
+     * @return bool
+     */
+    public function isConcurrent(): bool
+    {
+        return $this->concurrent;
     }
 }

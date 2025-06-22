@@ -226,7 +226,7 @@
 
                 try {
                     // Use a test endpoint or replace with your actual endpoint
-                    const response = await fetch('/test', {
+                    const response = await fetch('/test.php', {
                         method: 'GET',
                         headers: {
                             'Accept': 'application/x-json-stream',

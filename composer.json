@@ -23,6 +23,9 @@
     "require-dev": {
         "phpunit/phpunit": "^9.5|^10.0|^11.0"
     },
+    "suggest": {
+        "amphp/parallel": "For concurrent execution of placeholder resolvers"
+    },
     "scripts": {
         "test": "phpunit",
         "test:coverage": "phpunit --coverage-text --coverage-html=build/coverage-html",
