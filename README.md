@@ -1,8 +1,8 @@
 # Progressive JSON Streaming for PHP APIs
 
-**TL;DR:** Stream JSON data incrementally to show users page structure instantly while slow API calls complete in the background.
+**TL;DR:** Progressive JSON Streaming sends data incrementally to show users page structure instantly while slow API calls complete in the background.
 
-[![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue?style=flat-square&logo=php)](https://www.php.net/)[![Tests](https://img.shields.io/github/actions/workflow/status/egyjs/progressive-json-php/php-tests.yml?branch=master&style=flat-square&logo=github&label=Tests)](https://github.com/egyjs/progressive-json-php/actions)
+[![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-blue?style=flat-square&logo=php)](https://www.php.net/)[![Tests](https://img.shields.io/github/actions/workflow/status/egyjs/progressive-json-php/php-tests.yml?branch=master&style=flat-square&logo=github&label=Tests)](https://github.com/egyjs/progressive-json-php/actions)
 [![Code Coverage](https://img.shields.io/codecov/c/github/egyjs/progressive-json-php?style=flat-square&logo=codecov)](https://codecov.io/gh/egyjs/progressive-json-php)
 [![Latest Version](https://img.shields.io/packagist/v/egyjs/progressive-json-php?style=flat-square&logo=packagist)](https://packagist.org/packages/egyjs/progressive-json-php)
 [![License](https://img.shields.io/github/license/egyjs/progressive-json-php?style=flat-square)](https://github.com/egyjs/progressive-json-php/blob/master/LICENSE)
@@ -584,15 +584,39 @@ The test suite includes:
 - ✅ Stream generation and output
 - ✅ Symfony integration tests
 - ✅ Configuration and validation tests
+- ✅ **Laravel installation tests** (v9.x - v12.x)
 
 Coverage reports are generated in `build/coverage-html/` when running with coverage.
+
+### Laravel Installation Tests
+
+We provide comprehensive installation tests for Laravel versions 9.x through 12.x:
+
+```bash
+# Run Laravel installation tests locally
+./scripts/test-laravel-installation.sh
+
+# Windows users
+scripts\test-laravel-installation.bat
+```
+
+These tests verify:
+- Package installation via Composer
+- Autoloading and integration with Laravel
+- Service provider registration
+- Route context functionality
+- Performance and clean removal
+
+See [`docs/LARAVEL_INSTALLATION_TESTS.md`](docs/LARAVEL_INSTALLATION_TESTS.md) for detailed information.
 
 ### Continuous Integration
 
 GitHub Actions automatically runs tests on:
-- PHP 8.0, 8.1, 8.2, 8.3, and 8.4
+- PHP 8.1, 8.2, 8.3, and 8.4
+- Laravel 9.x, 10.x, 11.x, and 12.x combinations
 - Push and Pull Request events
 - Multiple operating systems
+- Weekly scheduled runs
 
 ---
 
