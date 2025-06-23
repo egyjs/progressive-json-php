@@ -7,4 +7,4 @@ coverage/
 *.log
 .DS_Store
 composer.lock
-
+laravel-installation-tests/

@@ -1,0 +1,62 @@
+name: Laravel Installation Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Run tests weekly on Sunday at 0:00 UTC
+    - cron: '0 0 * * 0'
+
+jobs:
+  laravel-installation-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.1', '8.2', '8.3', '8.4']
+        laravel-version: ['9.*', '10.*', '11.*', '12.*']
+        exclude:
+          # Laravel 9 requires PHP 8.0+, we start from 8.1
+          # Laravel 10 requires PHP 8.1+
+          # Laravel 11 requires PHP 8.2+  
+          # Laravel 12 requires PHP 8.3+
+          - php-version: '8.1'
+            laravel-version: '11.*'
+          - php-version: '8.1'
+            laravel-version: '12.*'
+          - php-version: '8.2'
+            laravel-version: '12.*'
+    
+    name: PHP ${{ matrix.php-version }} - Laravel ${{ matrix.laravel-version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv
+          coverage: none
+      
+      - name: Make test script executable
+        run: chmod +x scripts/test-laravel-installation.sh
+      
+      - name: Run Laravel installation tests
+        run: ./scripts/test-laravel-installation.sh ${{ matrix.laravel-version }} --keep-files
+      
+      - name: Run PHPUnit tests in Laravel context
+        run: |
+          # Convert Laravel version to directory name (e.g., "10.*" -> "10.x")
+          LARAVEL_DIR=$(echo "${{ matrix.laravel-version }}" | sed 's/\*/x/g')
+          cd laravel-installation-tests/laravel-${LARAVEL_DIR}
+          
+          # Copy the package tests to Laravel test directory
+          cp -r ../../tests/* tests/
+          cp ../../phpunit.xml ./phpunit-package.xml
+            # Run the package tests within Laravel context
+          ./vendor/bin/phpunit --configuration=phpunit-package.xml --testdox
