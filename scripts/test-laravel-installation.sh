@@ -106,7 +106,7 @@ test_laravel_version() {
         return 1
     fi
     
-    cd $test_app_dir
+    cd "$test_app_dir"
     
     # Show Laravel version
     local actual_version=$(php artisan --version)
