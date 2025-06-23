@@ -2,6 +2,12 @@
 
 # Laravel Installation Test Script
 # This script tests the installation of egyjs/progressive-json-php across multiple Laravel versions
+#
+# Usage:
+#   ./test-laravel-installation.sh                    # Test all default Laravel versions
+#   ./test-laravel-installation.sh 10.*              # Test specific Laravel version
+#   ./test-laravel-installation.sh 9.* 10.* 11.*     # Test multiple specific versions
+#   ./test-laravel-installation.sh --keep-files      # Keep test files after completion
 
 set -e  # Exit on any error
 
@@ -29,8 +35,45 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Parse command line arguments
+LARAVEL_VERSIONS=()
+KEEP_FILES=false
+
+# Default Laravel versions if none specified
+DEFAULT_LARAVEL_VERSIONS=("9.*" "10.*" "11.*" "12.*")
+
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+        --keep-files)
+            KEEP_FILES=true
+            ;;
+        --help|-h)
+            echo "Usage: $0 [LARAVEL_VERSION...] [--keep-files]"
+            echo ""
+            echo "Arguments:"
+            echo "  LARAVEL_VERSION  Laravel version to test (e.g., 9.*, 10.*, 11.*, 12.*)"
+            echo "  --keep-files     Keep test directories after completion"
+            echo ""
+            echo "Examples:"
+            echo "  $0                    # Test all default Laravel versions"
+            echo "  $0 10.*              # Test Laravel 10.* only"
+            echo "  $0 9.* 10.* --keep-files  # Test specific versions and keep files"
+            exit 0
+            ;;
+        *)
+            # Assume it's a Laravel version
+            LARAVEL_VERSIONS+=("$arg")
+            ;;
+    esac
+done
+
+# Use default versions if none specified
+if [ ${#LARAVEL_VERSIONS[@]} -eq 0 ]; then
+    LARAVEL_VERSIONS=("${DEFAULT_LARAVEL_VERSIONS[@]}")
+fi
+
 # Configuration
-LARAVEL_VERSIONS=("9.*" "10.*" "11.*" "12.*")
 PHP_VERSION=$(php -r "echo PHP_VERSION;")
 TEST_DIR="laravel-installation-tests"
 PACKAGE_NAME="egyjs/progressive-json-php"
@@ -38,6 +81,7 @@ PACKAGE_NAME="egyjs/progressive-json-php"
 print_status "Starting Laravel Installation Tests"
 print_status "PHP Version: $PHP_VERSION (Supports PHP 8.1+)"
 print_status "Package: $PACKAGE_NAME"
+print_status "Testing Laravel versions: ${LARAVEL_VERSIONS[*]}"
 
 # Create test directory
 if [ -d "$TEST_DIR" ]; then
@@ -100,6 +144,7 @@ test_laravel_version() {
     print_status "Testing basic functionality..."
     php -r "
         require_once 'vendor/autoload.php';
+        require_once 'bootstrap/app.php';
         \$streamer = new \Egyjs\ProgressiveJson\ProgressiveJsonStreamer();
         \$data = ['test' => 'Laravel ' . app()->version(), 'php' => PHP_VERSION];
         \$result = \$streamer->stream(\$data);
@@ -162,9 +207,11 @@ fi
 
 # Cleanup
 cd ..
-if [ "$1" != "--keep-files" ]; then
+if [ "$KEEP_FILES" = false ]; then
     print_status "Cleaning up test files..."
     rm -rf "$TEST_DIR"
+else
+    print_status "Test files preserved in: $TEST_DIR"
 fi
 
 print_success "Laravel installation tests completed!"

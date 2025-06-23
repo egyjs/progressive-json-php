@@ -595,16 +595,11 @@ We provide comprehensive installation tests for Laravel versions 9.x through 12.
 ```bash
 # Run Laravel installation tests locally
 ./scripts/test-laravel-installation.sh
-
-# Windows users
-scripts\test-laravel-installation.bat
 ```
 
 These tests verify:
 - Package installation via Composer
 - Autoloading and integration with Laravel
-- Service provider registration
-- Route context functionality
 - Performance and clean removal
 
 See [`docs/LARAVEL_INSTALLATION_TESTS.md`](docs/LARAVEL_INSTALLATION_TESTS.md) for detailed information.

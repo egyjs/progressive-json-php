@@ -43,60 +43,20 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv
           coverage: none
       
-      - name: Create Laravel application
-        run: |
-          composer create-project laravel/laravel:${{ matrix.laravel-version }} laravel-test-app --prefer-dist --no-progress --no-interaction
-          cd laravel-test-app
-          php artisan --version
+      - name: Make test script executable
+        run: chmod +x scripts/test-laravel-installation.sh
       
-      - name: Install package via Composer
-        working-directory: laravel-test-app
-        run: |
-          # Install the package from local source (simulating Packagist installation)
-          composer config repositories.local-package path ../
-          composer require egyjs/progressive-json-php:@dev --no-interaction
+      - name: Run Laravel installation tests
+        run: ./scripts/test-laravel-installation.sh ${{ matrix.laravel-version }} --keep-files
       
-      - name: Verify package installation
-        working-directory: laravel-test-app
+      - name: Run PHPUnit tests in Laravel context
         run: |
-          # Check if the package is listed in composer.json
-          composer show egyjs/progressive-json-php
+          # Convert Laravel version to directory name (e.g., "10.*" -> "10.x")
+          LARAVEL_DIR=$(echo "${{ matrix.laravel-version }}" | sed 's/\*/x/g')
+          cd laravel-installation-tests/laravel-${LARAVEL_DIR}
           
-          # Verify autoloading works
-          php -r "
-            require_once 'vendor/autoload.php';
-            if (class_exists('Egyjs\ProgressiveJson\ProgressiveJsonStreamer')) {
-              echo 'Package autoloaded successfully' . PHP_EOL;
-            } else {
-              echo 'Package autoloading failed' . PHP_EOL;
-              exit(1);
-            }
-          "
-      
-      - name: Copy and run PHPUnit tests
-        working-directory: laravel-test-app
-        run: |
           # Copy the package tests to Laravel test directory
-          cp -r ../tests/* tests/
-          cp ../phpunit.xml ./phpunit-package.xml
-          
-          # Run the package tests within Laravel context
+          cp -r ../../tests/* tests/
+          cp ../../phpunit.xml ./phpunit-package.xml
+            # Run the package tests within Laravel context
           ./vendor/bin/phpunit --configuration=phpunit-package.xml --testdox
-      
-
-  installation-summary:
-    runs-on: ubuntu-latest
-    needs: laravel-installation-test
-    if: always()
-    
-    steps:
-      - name: Installation Test Summary
-        run: |
-          echo "## Laravel Installation Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Installation tests completed for Laravel versions 9.x through 12.x" >> $GITHUB_STEP_SUMMARY
-          echo "across PHP versions 8.1 through 8.4" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Package installation verification" >> $GITHUB_STEP_SUMMARY
-          echo "✅ PHPUnit test execution in Laravel context" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Laravel integration testing" >> $GITHUB_STEP_SUMMARY
